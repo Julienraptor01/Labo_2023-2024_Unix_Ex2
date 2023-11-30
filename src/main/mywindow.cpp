@@ -3,11 +3,14 @@
 
 #include "FichierUtilisateur.h"
 
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 MyWindow::MyWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MyWindow)
 {
 	ui->setupUi(this);
 
-	// Configuration de la table des clients (ne pas modifier)
 	ui->tableWidgetClients->setColumnCount(2);
 	ui->tableWidgetClients->setRowCount(0);
 	QStringList labelsTableClients;
@@ -20,9 +23,10 @@ MyWindow::MyWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MyWindow)
 	ui->tableWidgetClients->verticalHeader()->setVisible(false);
 	ui->tableWidgetClients->horizontalHeader()->setStyleSheet("background-color: lightyellow");
 
-	/// Exemples d'utilisation (à supprimer)
-	setResultat(" ---- Bonjour !!! ---- ");
-	ajouteTupleTableUtilisateurs("wagner", 10);
+	//if the file does not exist, create it
+	int fd = open(FICHIER_UTILISATEURS, O_WRONLY | O_CREAT, 0644);
+	if (fd != -1)
+		::close(fd);
 }
 
 MyWindow::~MyWindow()
@@ -30,9 +34,6 @@ MyWindow::~MyWindow()
 	delete ui;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-///// Fonctions utiles : ne pas modifier /////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void MyWindow::setNom(const char *Text)
 {
 	if (strlen(Text) == 0)
@@ -43,14 +44,12 @@ void MyWindow::setNom(const char *Text)
 	ui->lineEditNom->setText(Text);
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////
 const char *MyWindow::getNom()
 {
 	strcpy(_nom, ui->lineEditNom->text().toStdString().c_str());
 	return _nom;
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void MyWindow::setMotDePasse(const char *Text)
 {
 	if (strlen(Text) == 0)
@@ -61,22 +60,19 @@ void MyWindow::setMotDePasse(const char *Text)
 	ui->lineEditMotDePasse->setText(Text);
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////
 const char *MyWindow::getMotDePasse()
 {
 	strcpy(_motDePasse, ui->lineEditMotDePasse->text().toStdString().c_str());
 	return _motDePasse;
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////
-int MyWindow::isNouveauChecked()
+bool MyWindow::isNouveauChecked()
 {
 	if (ui->checkBoxNouveau->isChecked())
-		return 1;
-	return 0;
+		return true;
+	return false;
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void MyWindow::setResultat(const char *Text)
 {
 	if (strlen(Text) == 0)
@@ -87,15 +83,11 @@ void MyWindow::setResultat(const char *Text)
 	ui->lineEditResultat->setText(Text);
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-///// Fonctions utiles Table des utilisateurs (ne pas modifier) //////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void MyWindow::ajouteTupleTableUtilisateurs(const char *nom, int hash)
 {
 	char Hash[20];
 	sprintf(Hash, "%d", hash);
 
-	// Ajout
 	int nbLignes = ui->tableWidgetClients->rowCount();
 	nbLignes++;
 	ui->tableWidgetClients->setRowCount(nbLignes);
@@ -118,31 +110,55 @@ void MyWindow::ajouteTupleTableUtilisateurs(const char *nom, int hash)
 	ui->tableWidgetClients->setItem(nbLignes - 1, 1, item);
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void MyWindow::videTableUtilisateurs()
 {
 	ui->tableWidgetClients->setRowCount(0);
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-///// Fonctions clics sur les boutons ////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void MyWindow::on_pushButtonLogin_clicked()
 {
-	// Récupération nom et mot de passe
-	char nom[20], motDePasse[20];
-	int nouvelUtilisateur;
+	//char nom[20], motDePasse[20];
+	char nom[20] = {0}, motDePasse[20] = {0};
+	bool nouvelUtilisateur = isNouveauChecked();
 	strcpy(nom, getNom());
 	strcpy(motDePasse, getMotDePasse());
-	nouvelUtilisateur = isNouveauChecked();
-
-	// TO DO
+	int pos = estPresent(nom);
 	printf("Clic sur bouton LOGIN : --%s--%s--%d--\n", nom, motDePasse, nouvelUtilisateur);
+	if (nouvelUtilisateur)
+	{
+		if (pos != 0)
+		{
+			setResultat("Utilisateur déjà existant !");
+			return;
+		}
+		ajouteUtilisateur(nom, motDePasse);
+		setResultat("Nouvel utilisateur créé : bienvenue !");
+		return;
+	}
+	if (pos == 0)
+	{
+		setResultat("Utilisateur inconnu…");
+		return;
+	}
+	if (!verifieMotDePasse(pos, motDePasse))
+	{
+		setResultat("Mot de passe incorrect !");
+		return;
+	}
+	setResultat("Re-bonjour cher utilisateur !");
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void MyWindow::on_pushButtonAfficheFichier_clicked()
 {
-	// TO DO
 	printf("Clic sur bouton AFFICHER\n");
+	struct stat st;
+	if (stat(FICHIER_UTILISATEURS, &st) == -1)
+	return;
+	int numberOfUsers = st.st_size / (sizeof(char) * 20 + sizeof(int));
+	UTILISATEUR *vecteur = new UTILISATEUR[numberOfUsers];
+	listeUtilisateurs(vecteur);
+	videTableUtilisateurs();
+	for (int i = 0; i < numberOfUsers; i++)
+		ajouteTupleTableUtilisateurs(vecteur[i].nom, vecteur[i].hash);
+	delete[] vecteur;
 }

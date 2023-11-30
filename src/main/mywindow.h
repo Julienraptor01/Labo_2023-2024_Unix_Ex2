@@ -22,7 +22,7 @@ public:
 	const char *getNom();
 	void setMotDePasse(const char *Text);
 	const char *getMotDePasse();
-	int isNouveauChecked();
+	bool isNouveauChecked();
 	void setResultat(const char *Text);
 	void ajouteTupleTableUtilisateurs(const char *nom, int hash);
 	void videTableUtilisateurs();
