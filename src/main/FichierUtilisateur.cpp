@@ -1,7 +1,7 @@
 #include "FichierUtilisateur.h"
 
+#include <cstring>
 #include <fcntl.h>
-#include <string.h>
 #include <unistd.h>
 
 int estPresent(const char *nom)

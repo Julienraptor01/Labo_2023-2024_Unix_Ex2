@@ -1,7 +1,7 @@
 #ifndef FICHIER_UTILISATEUR_H
 #define FICHIER_UTILISATEUR_H
 
-#define FICHIER_UTILISATEURS "out/utilisateurs.dat"
+#define FICHIER_UTILISATEURS "./out/utilisateurs.dat"
 
 typedef struct
 {
